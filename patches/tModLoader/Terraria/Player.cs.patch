@@ -32,7 +32,7 @@
  {
  	public static class BuilderAccToggleIDs
  	{
-@@ -216,7 +_,7 @@
+@@ -216,15 +_,18 @@
  		public bool SkipItemConsumption;
  	}
  

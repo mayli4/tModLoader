@@ -1237,6 +1237,11 @@ Mods: {
 				// DisplayName: Fragile Boulder Trap
 				// Tooltip: ""
 			}
+
+			ExampleShovel: {
+				// DisplayName: Example Shovel
+				// Tooltip: ""
+			}
 		}
 
 		# Projectile display names mainly show in chat when a player dies from it.
