@@ -27,5 +27,13 @@ namespace ExampleMod.Content.Tiles
 		public override void ChangeWaterfallStyle(ref int style) {
 			style = ModContent.GetInstance<ExampleWaterfallStyle>().Slot;
 		}
+
+		public override void ModifyTileDamage(int i, int j, ref int damage, Player player, Entity entitySource, Item itemSource) {
+			if (itemSource != null && itemSource.type == ItemID.CopperPickaxe) {
+				damage = 0;
+				Main.NewText("cant do dat");
+				return;
+			}
+		}
 	}
 }

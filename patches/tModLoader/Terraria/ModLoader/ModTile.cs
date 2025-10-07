@@ -702,6 +702,10 @@ public abstract class ModTile : ModBlockType
 	{
 	}
 
+	public virtual void ModifyTileDamage(int i, int j, ref int damage, Player player, Entity? entitySource, Item? itemSource)
+	{
+	}
+
 	/// <summary>
 	/// Customizes a tile drawn using <see cref="GameContent.Drawing.TileDrawing.AddSpecialPoint"/> with <see cref="GameContent.Drawing.TileDrawing.TileCounterType.MultiTileVine"/>, specifically how the tile reacts to wind and player interactions.
 	/// <para/> The parameters are as follows:

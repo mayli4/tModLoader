@@ -1444,6 +1444,11 @@ ref float maxCanAscendMultiplier, ref float maxAscentMultiplier, ref float const
 	{
 	}
 
+
+	public virtual void GetSpecialToolUsageSettings(ref Player.SpecialToolUsageSettings settings)
+	{
+	}
+
 	/// <summary>
 	/// Allows you to do things before this item's tooltip is drawn.
 	/// <para/> Called on the local client only.

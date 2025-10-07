@@ -36,11 +36,24 @@
  		public bool SkipItemConsumption;
  	}
  
++	/* Made this struct public. */
 -	private struct SpecialToolUsageSettings
 +	public struct SpecialToolUsageSettings
  	{
  		public delegate bool CanUseToolCondition(Player user, Item item, int targetX, int targetY);
  
+ 		public delegate void UseToolAction(Player user, Item item, int targetX, int targetY);
+ 
+ 		public bool IsAValidTool;
++
++		/* Made these delegates nullable. */
+-		public CanUseToolCondition UsageCondition;
++		public CanUseToolCondition? UsageCondition;
+-		public UseToolAction UsageAction;
++		public UseToolAction? UsageAction;
+ 	}
+ 
+ 	public class SavedPlayerDataWithAnnoyingRules
 @@ -252,20 +_,33 @@
  		public static void PlayerConnect(int playerIndex)
  		{
@@ -7608,7 +7621,7 @@
  		Teleport(pointPoisition, 1);
  		NetMessage.SendData(65, -1, -1, null, 0, whoAmI, pointPoisition.X, pointPoisition.Y, 1);
  		if (sItem.type != 1326)
-@@ -35479,7 +_,10 @@
+@@ -35479,24 +_,35 @@
  			}
  		}
  
@@ -7619,6 +7632,33 @@
  	}
  
  	private void DamageTileWithShovel(Player user, Item item, int x, int y)
+ 	{
+ 		Tile tileSafely = Framing.GetTileSafely(x, y);
++
++		/* Updated PickTile calls below in this method to include entity and item contexts. */
++
+ 		if (TileID.Sets.CanBeDugByShovel[tileSafely.type]) {
+ 			int pickPower = 30;
+ 			if (tileSafely.active() && (TileID.Sets.Conversion.Grass[tileSafely.type] || TileID.Sets.Conversion.JungleGrass[tileSafely.type] || tileSafely.type == 70 || tileSafely.type == 633))
+-				PickTile(x, y, 100);
++				PickTile(x, y, 100, user, item);
+ 
+-			PickTile(x, y, pickPower);
++			PickTile(x, y, pickPower, user, item);
+ 		}
+ 	}
+ 
+ 	private void ItemCheck_UseMiningTools(Item sItem)
+ 	{
+ 		SpecialToolUsageSettings specialToolUsageSettings = default(SpecialToolUsageSettings);
++		/* If the moditem is not null, allow it to define its own special tool usage. */
++		if (sItem.ModItem != null) {
++			sItem.ModItem.GetSpecialToolUsageSettings(ref specialToolUsageSettings);
++		}
++
+ 		if (sItem.type == 4711) {
+ 			SpecialToolUsageSettings specialToolUsageSettings2 = default(SpecialToolUsageSettings);
+ 			specialToolUsageSettings2.IsAValidTool = true;
 @@ -35516,7 +_,10 @@
  
  		if (toolTime == 0 && itemAnimation > 0 && controlUseItem) {
@@ -7630,6 +7670,26 @@
  				poundRelease = false;
  		}
  
+@@ -35535,7 +_,8 @@
+ 				return;
+ 			}
+ 
++			/* Pass player and item parameters. */
+-			ItemCheck_UseMiningTools_ActuallyUseMiningTool(sItem, out canHitWalls, tileTargetX, tileTargetY);
++			ItemCheck_UseMiningTools_ActuallyUseMiningTool(sItem, out canHitWalls, tileTargetX, tileTargetY, this, sItem);
+ 		}
+ 
+ 		if (releaseUseItem)
+@@ -35547,7 +_,8 @@
+ 		}
+ 	}
+ 
+-	private void ItemCheck_UseMiningTools_ActuallyUseMiningTool(Item sItem, out bool canHitWalls, int x, int y)
++	/* Added entity and item source as parameters. */
++	private void ItemCheck_UseMiningTools_ActuallyUseMiningTool(Item sItem, out bool canHitWalls, int x, int y, Entity? entitySource, Item? itemSource)
+ 	{
+ 		int num = -1;
+ 		int num2 = 0;
 @@ -35566,7 +_,14 @@
  		if (Main.tileHammer[tile.type]) {
  			canHitWalls = false;
@@ -7645,6 +7705,18 @@
  				if (!WorldGen.CanKillTile(x, y))
  					num2 = 0;
  
+@@ -35576,6 +_,11 @@
+ 				}
+ 
+ 				AchievementsHelper.CurrentlyMining = true;
++
++				if (TileLoader.GetTile(tile.type) is { } modTileForHammer) {
++					modTileForHammer.ModifyTileDamage(x, y, ref sItem.hammer, this, entitySource, itemSource);
++				}
++
+ 				if (hitTile.AddDamage(num, num2) >= 100) {
+ 					ClearMiningCacheAt(x, y, 1);
+ 					WorldGen.KillTile(x, y);
 @@ -35596,10 +_,17 @@
  			}
  		}
@@ -7663,6 +7735,17 @@
  			if (sItem.axe > 0) {
  				AchievementsHelper.CurrentlyMining = true;
  				if (!WorldGen.CanKillTile(x, y))
+@@ -35608,6 +_,10 @@
+ 				if (Main.dontStarveWorld && Main.myPlayer == whoAmI && num2 > 0 && tile.type == 80)
+ 					Hurt(PlayerDeathReason.ByOther(3), Main.DamageVar(6f, luck), 0, pvp: false, quiet: false, Crit: false, 0);
+ 
++				if (TileLoader.GetTile(tile.type) is { } modTileForAxe) {
++					modTileForAxe.ModifyTileDamage(x, y, ref sItem.axe, this, entitySource, itemSource);
++				}
++
+ 				if (hitTile.AddDamage(num, num2) >= 100) {
+ 					if (whoAmI == Main.myPlayer && sItem.type == 5095 && (TileID.Sets.IsATreeTrunk[tile.type] || tile.type == 323 || tile.type == 80)) {
+ 						LucyAxeMessage.MessageSource source = LucyAxeMessage.MessageSource.ChoppedTree;
 @@ -35630,7 +_,7 @@
  						NetMessage.SendData(17, -1, -1, null, 0, x, y);
  
@@ -7672,11 +7755,15 @@
  				}
  				else {
  					WorldGen.KillTile(x, y, fail: true);
-@@ -35649,8 +_,12 @@
- 			PickTile(x, y, sItem.pick);
+@@ -35646,11 +_,15 @@
+ 			}
  		}
- 
+ 		else if (sItem.pick > 0) {
+-			PickTile(x, y, sItem.pick);
++			PickTile(x, y, sItem.pick, entitySource, itemSource);
+ 		}
 +
+ 
  		if (sItem.pick > 0)
 +		/*
  			itemTime = (int)((float)sItem.useTime * pickSpeed);
@@ -8661,6 +8748,29 @@
  	}
  
  	public void GetOtherPlayersPickTile(int x, int y, int pickDamage)
+@@ -41144,7 +_,8 @@
+ 		hitTile.AddDamage(tileId, pickDamage);
+ 	}
+ 
+-	public void PickTile(int x, int y, int pickPower)
++	/* Added entity and item source as parameters. */
++	public void PickTile(int x, int y, int pickPower, Entity? entitySource = null, Item? itemSource = null)
+ 	{
+ 		int num = hitTile.HitObject(x, y, 1);
+ 		Tile tile = Main.tile[x, y];
+@@ -41161,6 +_,12 @@
+ 		if (DoesPickTargetTransformOnKill(hitTile, num2, x, y, pickPower, num, tile))
+ 			num2 = 0;
+ 
++		if (num2 > 0 && WorldGen.InWorld(x, y) && tile != null && tile.HasTile) {
++			if (TileLoader.GetTile(tile.TileType) is { } modTile) {
++				modTile.ModifyTileDamage(x, y, ref num2, this, entitySource, itemSource);
++			}
++		}
++
+ 		if (hitTile.AddDamage(num, num2) >= 100) {
+ 			AchievementsHelper.CurrentlyMining = true;
+ 			ClearMiningCacheAt(x, y, 1);
 @@ -41173,7 +_,7 @@
  					NetMessage.SendData(17, -1, -1, null, 0, x, y, 1f);
  				}
